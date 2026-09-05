@@ -1,0 +1,1406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TIB Systems — SOX Using AI | Field Course</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,500;0,600;0,700;1,500&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#12213A;         /* deep case-file navy */
+    --ink-2:#1B3358;
+    --paper:#EDE7D8;       /* manila / evidence paper */
+    --paper-2:#F7F4EA;
+    --line:#C9BFA3;        /* paper rule lines */
+    --amber:#C0812A;       /* evidence tab / accent */
+    --amber-deep:#8F5D18;
+    --brick:#8A3226;       /* pitfall / warning */
+    --teal:#1F6B67;        /* GRC / tech accent */
+    --ink-soft:#4A5872;
+    --white:#FFFFFF;
+    --radius:2px;
+    --shadow: 0 8px 24px rgba(18,33,58,0.18);
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:var(--ink);
+    color:var(--paper-2);
+    font-family:'Inter',sans-serif;
+    -webkit-font-smoothing:antialiased;
+    display:flex; flex-direction:column;
+  }
+  ::selection{background:var(--amber); color:var(--ink);}
+
+  /* ===== Header (slim) ===== */
+  header.topbar{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:8px 18px;
+    background:var(--ink-2);
+    border-bottom:1px solid rgba(255,255,255,0.08);
+    flex-shrink:0;
+    position:relative; z-index:70; /* stays above the sidebar overlay so it's always visible/clickable */
+  }
+  .brand{ display:flex; align-items:baseline; gap:8px; }
+  .brand .mark{
+    font-family:'Spectral',serif; font-weight:700; font-style:italic;
+    color:var(--amber); font-size:16px; letter-spacing:0.3px;
+  }
+  .brand .sub{ font-size:10px; letter-spacing:1.5px; text-transform:uppercase; color:#8FA0BE; }
+  .breadcrumb{ font-size:12px; color:#B9C4D8; display:flex; gap:6px; align-items:center; }
+  .breadcrumb b{ color:var(--paper-2); font-weight:600;}
+  .breadcrumb .sep{ color:#5A6A88; }
+  #menuToggle, #fullscreenToggle{
+    display:inline-flex; align-items:center; gap:6px;
+    background:none; border:1px solid rgba(255,255,255,0.25); color:var(--paper-2);
+    padding:6px 10px; border-radius:var(--radius); font-size:12.5px; cursor:pointer;
+  }
+  #menuToggle:hover, #fullscreenToggle:hover{ border-color:var(--amber); color:var(--amber); }
+
+  /* ===== Layout shell ===== */
+  .shell{ display:flex; flex:1; min-height:0; }
+
+  /* Sidebar is ALWAYS an off-canvas overlay — it never reserves permanent width,
+     so the course + SAP panes get full width by default. Toggle via #menuToggle. */
+  nav.toc{
+    width:290px; min-width:290px; background:var(--ink);
+    border-right:1px solid rgba(255,255,255,0.08);
+    overflow-y:auto; padding:14px 0 40px;
+    position:fixed; top:46px; bottom:0; left:0; z-index:60;
+    transform:translateX(-100%); transition:transform .2s; box-shadow:var(--shadow);
+  }
+  nav.toc.open{ transform:translateX(0); }
+  .toc-scrim{
+    display:none; position:fixed; top:46px; left:0; right:0; bottom:0; background:rgba(9,15,28,0.5); z-index:55;
+  }
+  .toc-scrim.open{ display:block; }
+  nav.toc .part{ margin-bottom:2px; }
+  nav.toc .part-head{
+    display:flex; align-items:center; gap:9px;
+    padding:11px 18px; cursor:pointer; user-select:none;
+    color:#C7D2E6; font-size:12.5px; letter-spacing:0.6px; text-transform:uppercase; font-weight:600;
+    border-left:3px solid transparent;
+    transition:background .15s;
+  }
+  nav.toc .part-head:hover{ background:rgba(255,255,255,0.04); }
+  nav.toc .part-head .roman{
+    font-family:'Spectral',serif; font-style:italic; color:var(--amber); width:20px; flex-shrink:0;
+  }
+  nav.toc .part-head .chev{ margin-left:auto; font-size:10px; color:#6C7C9C; transition:transform .2s; }
+  nav.toc .part.open .part-head .chev{ transform:rotate(90deg); }
+  nav.toc .part-head.active-part{ border-left-color:var(--amber); background:rgba(192,129,42,0.08); }
+  nav.toc .books{ display:none; }
+  nav.toc .part.open .books{ display:block; }
+  nav.toc .book-row{
+    display:flex; align-items:baseline; gap:10px;
+    padding:8px 18px 8px 30px; cursor:pointer; font-size:13px; color:#9EACC8;
+    border-left:3px solid transparent;
+  }
+  nav.toc .book-row:hover{ color:var(--paper-2); background:rgba(255,255,255,0.03); }
+  nav.toc .book-row.active{
+    color:var(--paper-2); background:rgba(192,129,42,0.13); border-left-color:var(--amber); font-weight:500;
+  }
+  nav.toc .book-row .bnum{
+    font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--amber);
+    min-width:20px;
+  }
+  nav.toc .book-row .bdone{ margin-left:auto; color:var(--teal); font-size:12px; }
+
+  main.workspace{ flex:1; display:flex; min-width:0; }
+
+  /* SAP window is hidden by default so the course pane gets full width — toggled via #sapToggle */
+  body:not(.sap-open) .pane-sap{ display:none; }
+  body:not(.sap-open) .divider{ display:none; }
+  body:not(.sap-open) .pane-course{ width:100% !important; }
+  #sapToggle.active{ background:var(--amber); border-color:var(--amber); color:var(--ink); font-weight:600; }
+
+  /* ===== Course pane ===== */
+  .pane{ display:flex; flex-direction:column; min-width:0; }
+  .pane-course{
+    width:56%; background:var(--paper); color:var(--ink);
+    position:relative; overflow:hidden;
+  }
+  .pane-sap{ width:44%; background:#0E1626; border-left:2px solid var(--amber); display:flex; flex-direction:column;}
+  .divider{
+    width:6px; cursor:col-resize; background:var(--ink-2);
+    position:relative; flex-shrink:0;
+  }
+  .divider:hover, .divider.dragging{ background:var(--amber-deep); }
+
+  .pane-course-inner{
+    flex:1; overflow-y:auto; padding:12px 32px 70px;
+  }
+  .pane-header{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:6px 18px; background:var(--ink-2); color:var(--paper-2);
+    font-size:10.5px; letter-spacing:0.8px; text-transform:uppercase; font-weight:600;
+  }
+  .pane-header.sap-head{ background:#0A1120; color:#8FA0BE; border-bottom:1px solid rgba(255,255,255,0.08);}
+  .pane-header .tag{ color:var(--amber); }
+
+  /* Book identity: one compact row (tag + title + subtitle inline) instead of three stacked blocks */
+  .book-tab{
+    display:inline-flex; align-items:center; gap:6px;
+    background:var(--ink); color:var(--paper-2);
+    font-family:'JetBrains Mono',monospace; font-size:10px; font-weight:700;
+    padding:3px 9px; border-radius:2px; margin-bottom:4px;
+    letter-spacing:0.4px;
+  }
+  .book-tab .n{ color:var(--amber); }
+
+  .book-identity-row{
+    display:flex; align-items:baseline; flex-wrap:wrap; gap:10px;
+    margin:0 0 8px; padding-bottom:8px; border-bottom:1px solid var(--line);
+  }
+  h1.book-title{
+    font-family:'Spectral',serif; font-weight:700; font-size:20px; line-height:1.1;
+    margin:0; color:var(--ink);
+  }
+  .book-subtitle{
+    font-family:'Spectral',serif; font-style:italic; font-size:13px; color:var(--amber-deep);
+    margin:0;
+  }
+
+  .slide{ animation:fadein .25s ease; }
+  @keyframes fadein{ from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:none;} }
+  .slide h2{
+    font-family:'Inter',sans-serif; font-size:11px; letter-spacing:1.4px; text-transform:uppercase;
+    color:var(--amber-deep); font-weight:700; margin:0 0 6px;
+    display:flex; align-items:center; gap:10px;
+  }
+  .slide h2::after{ content:''; flex:1; height:1px; background:var(--line); }
+  .slide p.body-text{ font-size:14px; line-height:1.5; color:#2B3548; margin:0 0 8px; }
+
+  table.tx-table{ width:100%; border-collapse:collapse; font-size:14px; margin-top:6px; }
+  table.tx-table th{
+    text-align:left; font-size:11px; letter-spacing:1px; text-transform:uppercase;
+    color:var(--amber-deep); border-bottom:2px solid var(--ink); padding:8px 10px 10px;
+  }
+  table.tx-table td{ padding:12px 10px; border-bottom:1px solid var(--line); vertical-align:top; color:#2B3548; }
+  table.tx-table tr:last-child td{ border-bottom:none; }
+  .tool-pill{
+    display:inline-block; font-size:10.5px; padding:3px 7px; border-radius:2px;
+    background:var(--ink); color:var(--paper-2); letter-spacing:0.3px; white-space:nowrap;
+  }
+  .code-chip{
+    font-family:'JetBrains Mono',monospace; font-weight:700; font-size:13.5px;
+    color:var(--ink); background:rgba(31,107,103,0.13); border:1px solid rgba(31,107,103,0.35);
+    padding:2px 8px; border-radius:2px; cursor:pointer; white-space:nowrap;
+  }
+  .code-chip:hover{ background:rgba(31,107,103,0.25); }
+  .code-chip.copied{ background:var(--teal); color:#fff; border-color:var(--teal); }
+  .how-to{
+    margin-top:6px; font-size:11.5px; line-height:1.5; color:var(--ink-soft);
+    display:flex; gap:5px; align-items:flex-start; max-width:220px;
+  }
+  .how-to::before{ content:'\2192'; color:var(--amber-deep); font-weight:700; flex-shrink:0; }
+
+  ol.steps{ margin:0; padding:0; list-style:none; counter-reset:step; }
+  ol.steps li{
+    counter-increment:step; position:relative; padding:0 0 20px 44px; font-size:16px; line-height:1.6; color:#2B3548;
+  }
+  ol.steps li::before{
+    content:counter(step); position:absolute; left:0; top:0;
+    width:28px; height:28px; border-radius:50%; background:var(--ink); color:var(--amber);
+    font-family:'JetBrains Mono',monospace; font-weight:700; font-size:13px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  ol.steps li::after{
+    content:''; position:absolute; left:14px; top:28px; bottom:0; width:1px; background:var(--line);
+  }
+  ol.steps li:last-child::after{ display:none; }
+
+  /* ===== Combined Execution Table: Step / Tool / Code / Directions / Screenshot ===== */
+  table.exec-table{ width:100%; border-collapse:collapse; font-size:14.5px; table-layout:fixed; }
+  table.exec-table th{
+    text-align:left; font-size:11px; letter-spacing:1px; text-transform:uppercase;
+    color:var(--amber-deep); border-bottom:2px solid var(--ink); padding:8px 10px 10px;
+  }
+  table.exec-table th:nth-child(1){ width:40px; }
+  table.exec-table th:nth-child(2){ width:120px; }
+  table.exec-table th:nth-child(3){ width:130px; }
+  table.exec-table th:nth-child(5){ width:130px; }
+  table.exec-table td{ padding:9px 10px; border-bottom:1px solid var(--line); vertical-align:top; color:#2B3548; line-height:1.45; font-size:13.5px; }
+  table.exec-table tr:last-child td{ border-bottom:none; }
+  .exec-step-badge{
+    width:22px; height:22px; border-radius:50%; background:var(--ink); color:var(--amber);
+    font-family:'JetBrains Mono',monospace; font-weight:700; font-size:11px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .tool-dash{ color:#A8ADB8; font-size:15px; }
+  .screenshot-slot{
+    border:1px dashed var(--line); border-radius:2px; padding:5px 6px; text-align:center;
+    font-size:10.5px; color:#8A93A8; background:var(--paper-2); white-space:nowrap;
+  }
+  @media (max-width: 1180px){
+    table.exec-table{ table-layout:auto; }
+    table.exec-table th:nth-child(1), table.exec-table th:nth-child(2),
+    table.exec-table th:nth-child(3), table.exec-table th:nth-child(5){ width:auto; }
+  }
+
+  /* FIX: the SAP window opens by splitting .pane-course to 56% via flexbox (body.sap-open),
+     not by narrowing the browser viewport — so the media query above never fires even though
+     the Directions column's real, on-screen width has collapsed the same way it would on a
+     narrow phone. Re-apply the identical relief directly off the sap-open class so the table
+     actually responds to the condition that is really shrinking it. */
+  body.sap-open table.exec-table{ table-layout:auto; }
+  body.sap-open table.exec-table th:nth-child(1), body.sap-open table.exec-table th:nth-child(2),
+  body.sap-open table.exec-table th:nth-child(3), body.sap-open table.exec-table th:nth-child(5){ width:auto; }
+
+  table.exec-table td:nth-child(3) .code-chip{ white-space:normal; display:inline-block; line-height:1.3; }
+
+  .callout{
+    border:1px solid var(--line); border-left:5px solid var(--teal);
+    background:var(--paper-2); padding:12px 14px; font-size:13.5px; line-height:1.5; color:#2B3548;
+    box-shadow: 2px 3px 0 rgba(18,33,58,0.06);
+  }
+  .callout.pitfall{ border-left-color:var(--brick); }
+  .callout .stamp{
+    font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:1.5px; text-transform:uppercase;
+    color:var(--teal); display:block; margin-bottom:5px; font-weight:700;
+  }
+  .callout.pitfall .stamp{ color:var(--brick); }
+  .empty-note{ font-size:14px; color:#6C7A94; font-style:italic; }
+
+  /* ===== Player controls ===== */
+  .player-bar{
+    position:absolute; left:0; right:0; bottom:0;
+    background:var(--ink); border-top:2px solid var(--amber);
+    padding:8px 32px; display:flex; align-items:center; gap:14px;
+  }
+  .player-bar button{
+    background:none; border:1px solid rgba(255,255,255,0.25); color:var(--paper-2);
+    width:32px; height:32px; border-radius:50%; cursor:pointer; font-size:13px;
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;
+    transition:background .15s, border-color .15s;
+  }
+  .player-bar button:hover:not(:disabled){ border-color:var(--amber); color:var(--amber); }
+  .player-bar button:disabled{ opacity:0.3; cursor:default; }
+  .player-bar button.play{
+    width:38px; height:38px; background:var(--amber); border-color:var(--amber); color:var(--ink); font-size:14px;
+  }
+  .player-bar button.play:hover{ background:var(--amber-deep); border-color:var(--amber-deep); color:#fff; }
+  .dots{ flex:1; display:flex; gap:6px; align-items:center; justify-content:center; }
+  .dots .dot{
+    width:7px; height:7px; border-radius:50%; background:#3A4A6A; cursor:pointer; flex-shrink:0;
+  }
+  .dots .dot.active{ background:var(--amber); width:20px; border-radius:4px; }
+  .slide-label{ flex:1; font-size:12px; color:#8FA0BE; letter-spacing:0.5px; text-align:center; font-family:'JetBrains Mono',monospace;}
+
+  /* ===== SAP pane ===== */
+  .sap-mode-toggle{
+    display:flex; gap:0; padding:10px 16px 0; background:#0A1120;
+  }
+  .modeBtn{
+    flex:1; background:none; border:1px solid rgba(255,255,255,0.15); color:#8FA0BE;
+    padding:9px 10px; font-size:12px; cursor:pointer; font-weight:600;
+  }
+  .modeBtn:first-child{ border-radius:2px 0 0 2px; border-right:none; }
+  .modeBtn:last-child{ border-radius:0 2px 2px 0; }
+  .modeBtn.active{ background:var(--teal); border-color:var(--teal); color:#fff; }
+
+  .sap-desktop-guide{
+    flex:1; overflow-y:auto; padding:24px 22px; background:#0E1626; color:#C7D2E6;
+    display:flex; flex-direction:column; align-items:center; text-align:center;
+  }
+  .sap-desktop-guide .icon{ font-size:32px; margin-bottom:12px; }
+  .sap-desktop-guide .lead{ font-size:14px; line-height:1.6; color:#DCE4F2; max-width:380px; margin:0 0 18px; }
+  .sap-desktop-guide ol{ text-align:left; max-width:380px; margin:0 0 16px; padding-left:22px; }
+  .sap-desktop-guide ol li{ font-size:13.5px; line-height:1.65; color:#B9C4D8; margin-bottom:12px; }
+  .sap-desktop-guide ol li b{ color:#fff; }
+  .sap-desktop-guide .key{
+    display:inline-block; background:#1B2740; border:1px solid rgba(255,255,255,0.2); border-radius:3px;
+    padding:1px 6px; font-family:'JetBrains Mono',monospace; font-size:11.5px; color:#DCE4F2;
+  }
+  .sap-desktop-guide .micro{ font-size:12px; color:#6C7C9C; max-width:340px; line-height:1.5; }
+
+  .sap-browser-guide{ display:flex; flex-direction:column; flex:1; min-height:0; }
+  .sap-urlbar{
+    display:flex; gap:8px; padding:12px 16px; background:#0A1120;
+    border-bottom:1px solid rgba(255,255,255,0.08);
+  }
+  .sap-urlbar input{
+    flex:1; background:#161F35; border:1px solid rgba(255,255,255,0.15); color:#DCE4F2;
+    padding:9px 12px; border-radius:2px; font-size:13px; font-family:'JetBrains Mono',monospace;
+  }
+  .sap-urlbar input::placeholder{ color:#54627F; }
+  .sap-urlbar button{
+    background:var(--teal); border:none; color:#fff; padding:0 16px; border-radius:2px; cursor:pointer;
+    font-size:13px; font-weight:600;
+  }
+  .sap-urlbar button.secondary{ background:transparent; border:1px solid rgba(255,255,255,0.2); color:#B9C4D8; }
+  .sap-frame-wrap{ flex:1; position:relative; background:#fff; }
+  .sap-frame-wrap iframe{ width:100%; height:100%; border:none; display:block; }
+  .sap-placeholder{
+    position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:14px; color:#5A6A88; background:#0E1626; text-align:center; padding:30px;
+  }
+  .sap-placeholder .icon{ font-size:34px; }
+  .sap-placeholder p{ max-width:340px; font-size:13.5px; line-height:1.6; margin:0; }
+  .sap-note{
+    font-size:11.5px; color:#7A8AAA; padding:9px 16px; background:#0A1120;
+    border-top:1px solid rgba(255,255,255,0.06); line-height:1.5;
+  }
+  .sap-note b{ color:#B9C4D8; }
+  .sap-refbox{
+    padding:14px 16px; background:#111A2E; border-top:1px solid rgba(255,255,255,0.08);
+    max-height:200px; overflow-y:auto;
+  }
+  .sap-refbox h3{ margin:0 0 10px; font-size:10.5px; letter-spacing:1.3px; text-transform:uppercase; color:#7A8AAA; }
+  .sap-refbox .refrow{ display:flex; gap:10px; align-items:baseline; margin-bottom:8px; font-size:12.5px; }
+  .sap-refbox .refrow .code-chip{ font-size:12px; color:#DCE4F2; background:rgba(31,107,103,0.3); border-color:rgba(31,107,103,0.6); }
+  .sap-refbox .refrow .rp{ color:#8FA0BE; }
+
+  /* ===== Mobile ===== */
+  .layout-toggle{ display:none; gap:6px; }
+  .layout-toggle button{
+    background:none; border:1px solid rgba(255,255,255,0.25); color:#B9C4D8; font-size:11px;
+    padding:6px 10px; border-radius:2px; cursor:pointer;
+  }
+  .layout-toggle button.active{ background:var(--amber); color:var(--ink); border-color:var(--amber); font-weight:600; }
+
+  /* ===== Auth gate ===== */
+  #authGate{
+    position:fixed; inset:0; z-index:200; background:var(--ink);
+    display:flex; align-items:center; justify-content:center; padding:20px;
+  }
+  #authGate.hidden{ display:none; }
+  .auth-card{
+    width:100%; max-width:380px; background:var(--paper); color:var(--ink);
+    padding:34px 32px; box-shadow:var(--shadow);
+  }
+  .auth-card .mark{
+    font-family:'Spectral',serif; font-weight:700; font-style:italic; color:var(--amber-deep);
+    font-size:20px; display:block; margin-bottom:2px;
+  }
+  .auth-card .sub{ font-size:11px; letter-spacing:1.5px; text-transform:uppercase; color:#6C7A94; margin-bottom:26px; display:block; }
+  .auth-card h2{ font-family:'Spectral',serif; font-size:20px; margin:0 0 6px; }
+  .auth-card p.hint{ font-size:13px; color:#5A6A88; margin:0 0 20px; line-height:1.5; }
+  .auth-card label{ display:block; font-size:11px; letter-spacing:0.5px; text-transform:uppercase; color:var(--amber-deep); font-weight:700; margin:14px 0 6px; }
+  .auth-card input{
+    width:100%; padding:10px 12px; border:1px solid var(--line); background:var(--paper-2);
+    font-size:14px; border-radius:2px; font-family:'Inter',sans-serif; color:var(--ink);
+  }
+  .auth-card input:focus{ outline:2px solid var(--teal); outline-offset:1px; }
+  .auth-card .authBtn{
+    width:100%; margin-top:22px; padding:11px; background:var(--ink); color:var(--paper-2);
+    border:none; border-radius:2px; font-size:14px; font-weight:600; cursor:pointer;
+  }
+  .auth-card .authBtn:hover{ background:var(--ink-2); }
+  .auth-card .switchLine{ margin-top:16px; font-size:12.5px; color:#5A6A88; text-align:center; }
+  .auth-card .switchLine a{ color:var(--teal); cursor:pointer; text-decoration:underline; }
+  .auth-card .authMsg{ margin-top:14px; font-size:12.5px; padding:9px 11px; border-radius:2px; line-height:1.5; }
+  .auth-card .authMsg.error{ background:rgba(138,50,38,0.1); color:var(--brick); border:1px solid rgba(138,50,38,0.3); }
+  .auth-card .authMsg.info{ background:rgba(31,107,103,0.1); color:var(--teal); border:1px solid rgba(31,107,103,0.3); }
+  .auth-card .authMsg.hidden{ display:none; }
+  .not-enrolled-box{ text-align:center; }
+  .not-enrolled-box .icon{ font-size:30px; margin-bottom:10px; }
+  .not-enrolled-box .signOutLink{ margin-top:18px; display:inline-block; font-size:12.5px; color:var(--teal); cursor:pointer; text-decoration:underline; }
+  #loadingGate{
+    position:fixed; inset:0; z-index:199; background:var(--ink); color:#8FA0BE;
+    display:flex; align-items:center; justify-content:center; font-family:'JetBrains Mono',monospace; font-size:13px;
+  }
+  #loadingGate.hidden{ display:none; }
+  #notEnrolledGate{ display:flex; }
+  #notEnrolledGate.hidden{ display:none; }
+
+  .signout-btn{
+    background:none; border:1px solid rgba(255,255,255,0.25); color:#B9C4D8; font-size:11.5px;
+    padding:6px 12px; border-radius:2px; cursor:pointer; margin-left:14px;
+  }
+  .signout-btn:hover{ border-color:var(--amber); color:var(--amber); }
+  .checkmark{ margin-left:auto; color:var(--teal); font-size:12px; }
+
+  .intro-row{
+    display:flex; align-items:center; gap:9px;
+    margin:0 12px 12px; padding:12px 14px; cursor:pointer;
+    background:rgba(192,129,42,0.14); border:1px solid rgba(192,129,42,0.4); border-radius:3px;
+    color:var(--paper-2); font-size:13px; font-weight:600;
+  }
+  .intro-row:hover{ background:rgba(192,129,42,0.22); }
+  .intro-row.active{ background:var(--amber); color:var(--ink); border-color:var(--amber); }
+  .intro-row .istar{ color:var(--amber); font-size:14px; }
+  .intro-row.active .istar{ color:var(--ink); }
+  .ref-empty{ font-size:12.5px; color:#6C7A94; line-height:1.5; font-style:italic; }
+
+  .book-tab.warn{ background:var(--brick); }
+  .intro-parts{ display:flex; flex-direction:column; gap:12px; }
+  .intro-part-row{
+    display:flex; flex-direction:column; gap:2px; padding:12px 14px;
+    background:var(--paper-2); border-left:4px solid var(--teal); font-size:14.5px; color:#2B3548;
+  }
+  .intro-part-row b{ font-family:'Spectral',serif; font-size:15px; color:var(--ink); }
+  .intro-part-row span{ font-size:13.5px; color:var(--ink-soft); }
+  .cta-start{
+    margin-top:22px; background:var(--amber); color:var(--ink); border:none; padding:13px 26px;
+    font-size:15px; font-weight:700; border-radius:2px; cursor:pointer; font-family:'Inter',sans-serif;
+  }
+  .cta-start:hover{ background:var(--amber-deep); color:#fff; }
+
+  /* ===== Full-book page: all sections stacked, no per-step pagination ===== */
+  .book-section{ margin-bottom:16px; }
+  .book-section:last-child{ margin-bottom:0; }
+  .book-section h2{ margin-bottom:14px; }
+
+  /* Execution Steps read together with Evidence + Pitfall — the context a trainee
+     needs while actually performing the steps, kept visible beside them, not scrolled past. */
+  .exec-context-wrap{ display:flex; gap:30px; align-items:flex-start; }
+  .exec-col{ flex:1 1 58%; min-width:0; }
+  .context-col{
+    flex:0 0 300px; display:flex; flex-direction:column; gap:16px;
+    position:sticky; top:0;
+  }
+  .context-col .callout{ margin:0; }
+  @media (max-width: 1180px){
+    .exec-context-wrap{ flex-direction:column; }
+    .context-col{ flex:none; width:100%; position:static; }
+  }
+
+  /* ===== Transition (book complete → up next) page ===== */
+  .transition-page{
+    display:flex; flex-direction:column; align-items:center; text-align:center;
+    padding:40px 20px; max-width:520px; margin:0 auto;
+  }
+  .transition-check{
+    width:56px; height:56px; border-radius:50%; background:var(--teal); color:#fff;
+    display:flex; align-items:center; justify-content:center; font-size:26px; margin-bottom:18px;
+  }
+  .transition-page .done-label{
+    font-size:12px; letter-spacing:1.5px; text-transform:uppercase; color:var(--teal); font-weight:700; margin-bottom:6px;
+  }
+  .transition-page .done-title{
+    font-family:'Spectral',serif; font-weight:700; font-size:22px; color:var(--ink); margin:0 0 32px;
+  }
+  .transition-nextcard{
+    width:100%; background:var(--paper-2); border:1px solid var(--line); border-left:5px solid var(--amber);
+    padding:20px 22px; text-align:left; margin-bottom:26px;
+  }
+  .transition-nextcard .up-next-label{
+    font-size:11px; letter-spacing:1.5px; text-transform:uppercase; color:var(--amber-deep); font-weight:700; margin-bottom:8px;
+  }
+  .transition-nextcard .next-title{ font-family:'Spectral',serif; font-weight:700; font-size:19px; color:var(--ink); margin:0 0 3px; }
+  .transition-nextcard .next-subtitle{ font-family:'Spectral',serif; font-style:italic; font-size:14px; color:var(--amber-deep); margin:0 0 10px; }
+  .transition-nextcard .next-intro{ font-size:14px; line-height:1.6; color:#4A5872; }
+  .transition-page .progress-note{ font-size:13px; color:#6C7A94; margin-bottom:10px; }
+
+  /* ===== Course complete page ===== */
+  .complete-page{
+    display:flex; flex-direction:column; align-items:center; text-align:center;
+    padding:60px 20px; max-width:480px; margin:0 auto;
+  }
+  .complete-page .trophy{ font-size:44px; margin-bottom:16px; }
+  .complete-page h1{ font-family:'Spectral',serif; font-weight:700; font-size:26px; color:var(--ink); margin:0 0 10px; }
+  .complete-page p{ font-size:15px; line-height:1.6; color:#4A5872; margin:0 0 24px; }
+
+  @media (max-width: 880px){
+    .breadcrumb{ display:none; }
+    header.topbar{ padding:8px 12px; gap:8px; flex-wrap:nowrap; }
+    .brand{ flex-direction:column; align-items:flex-start; gap:0; min-width:0; }
+    .brand .mark{ font-size:14px; }
+    .brand .sub{ display:none; }
+    .layout-toggle button{ padding:6px 8px; font-size:10px; }
+    #fullscreenToggle{ display:none; }
+    #sapToggle{ display:none; }
+    .divider{ display:none; }
+    .layout-toggle{ display:flex; }
+    main.workspace{ flex-direction:column; }
+    .pane-course, .pane-sap{ width:100% !important; height:100%; }
+    .pane-course{ display:flex; }
+    .pane-sap{ display:none; }
+    body.show-sap .pane-course{ display:none; }
+    body.show-sap .pane-sap{ display:flex; }
+    .pane-course-inner{ padding:22px 18px 90px; }
+    .player-bar{ padding:12px 16px; }
+    h1.book-title{ font-size:24px; }
+  }
+
+  /* ===== Expand Directions button + full-screen step-by-step modal ===== */
+  .directions-cell{ display:flex; flex-direction:column; gap:7px; }
+  .expand-btn{
+    align-self:flex-start; display:inline-flex; align-items:center; gap:5px;
+    background:var(--paper-2); border:1px solid var(--line); color:var(--amber-deep);
+    font-family:'Inter',sans-serif; font-size:11px; font-weight:600; letter-spacing:.02em;
+    padding:4px 10px; border-radius:3px; cursor:pointer;
+  }
+  .expand-btn:hover{ background:var(--amber); color:#fff; border-color:var(--amber); }
+  .directions-modal-overlay{
+    position:fixed; inset:0; background:rgba(18,33,58,.72); z-index:500;
+    display:flex; align-items:center; justify-content:center; padding:28px;
+  }
+  .directions-modal{
+    background:var(--paper-2); width:100%; height:100%; max-width:1100px; max-height:100%;
+    border-radius:6px; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,.4);
+  }
+  .directions-modal-head{
+    position:sticky; top:0; background:var(--ink); color:#fff; padding:18px 26px;
+    display:flex; align-items:flex-start; justify-content:space-between; z-index:2;
+  }
+  .directions-modal-eyebrow{ font-size:12px; letter-spacing:.05em; text-transform:uppercase; color:var(--amber); margin-bottom:8px; }
+  .expand-tool-line{ display:flex; gap:8px; }
+  .directions-modal-close{
+    background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.3); color:#fff;
+    width:32px; height:32px; border-radius:4px; font-size:16px; cursor:pointer; flex-shrink:0;
+  }
+  .directions-modal-close:hover{ background:rgba(255,255,255,.24); }
+  .directions-modal-body{ padding:26px 32px 40px; }
+  .directions-modal-body h3{
+    font-family:'Spectral',serif; color:var(--amber-deep); font-size:15px; text-transform:uppercase;
+    letter-spacing:.03em; margin:22px 0 12px; border-bottom:1px solid var(--line); padding-bottom:6px;
+  }
+  .directions-modal-body h3:first-child{ margin-top:0; }
+  ol.directions-steps{ list-style:none; counter-reset:dstep; margin:0; padding:0; }
+  ol.directions-steps li{
+    counter-increment:dstep; position:relative; padding:7px 0 7px 42px; font-size:16px;
+    line-height:1.55; color:#2B3548; border-bottom:1px dashed var(--line);
+  }
+  ol.directions-steps li:last-child{ border-bottom:none; }
+  ol.directions-steps li::before{
+    content:counter(dstep); position:absolute; left:0; top:7px; width:26px; height:26px;
+    background:var(--ink); color:var(--amber); border-radius:50%; display:flex; align-items:center;
+    justify-content:center; font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700;
+  }
+  ol.directions-steps-nav li::before{ background:var(--teal); color:#fff; }
+  @media (max-width:780px){
+    .directions-modal-overlay{ padding:0; }
+    .directions-modal{ border-radius:0; max-width:100%; }
+    .directions-modal-body{ padding:20px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="loadingGate">Loading course…</div>
+
+<div id="authGate" class="hidden">
+  <div class="auth-card">
+    <span class="mark">TIB Systems</span>
+    <span class="sub">SOX Using AI &mdash; Course 5</span>
+    <h2 id="authTitle">Trainee Sign In</h2>
+    <p class="hint" id="authHint">Sign in with the email and password used for your TIB enrollment.</p>
+    <label for="authEmail">Email</label>
+    <input id="authEmail" type="email" autocomplete="email" placeholder="you@company.com" />
+    <label for="authPassword">Password</label>
+    <input id="authPassword" type="password" autocomplete="current-password" placeholder="••••••••" />
+    <button class="authBtn" id="authSubmit">Sign In</button>
+    <div class="switchLine" id="authSwitch">New here? <a id="authSwitchLink">Create an account</a></div>
+    <div class="authMsg hidden" id="authMsg"></div>
+  </div>
+</div>
+
+<div id="notEnrolledGate" class="hidden" style="position:fixed; inset:0; z-index:200; background:var(--ink); align-items:center; justify-content:center; padding:20px;">
+  <div class="auth-card not-enrolled-box">
+    <span class="mark">TIB Systems</span>
+    <span class="sub">SOX Using AI &mdash; Course 5</span>
+    <div class="icon">🔒</div>
+    <h2>Not Yet Enrolled</h2>
+    <p class="hint">You're signed in as <b id="notEnrolledEmail"></b>, but this account isn't enrolled in the SOX Using AI course yet. Contact your TIB administrator to be added.</p>
+    <span class="signOutLink" id="notEnrolledSignOut">Sign out</span>
+  </div>
+</div>
+
+<header class="topbar">
+  <div style="display:flex; align-items:center; gap:14px;">
+    <button id="menuToggle" onclick="toggleToc()">☰ Contents</button>
+    <div class="brand">
+      <span class="mark">TIB Systems</span>
+      <span class="sub">SOX Using AI &mdash; Course 5</span>
+    </div>
+  </div>
+  <div class="breadcrumb" id="breadcrumb">Loading…</div>
+  <div style="display:flex; align-items:center; gap:10px;">
+    <div class="layout-toggle">
+      <button id="btnShowCourse" class="active" onclick="setMobileView(false)">Course</button>
+      <button id="btnShowSap" onclick="setMobileView(true)">SAP Window</button>
+    </div>
+    <button id="fullscreenToggle" title="Toggle full screen">⛶ Full Screen</button>
+    <button id="sapToggle" title="Show or hide the SAP window">🖥 Open SAP Window</button>
+    <button class="signout-btn" id="headerSignOut">Sign Out</button>
+  </div>
+</header>
+
+<div class="shell">
+  <div class="toc-scrim" id="tocScrim" onclick="toggleToc(false)"></div>
+  <nav class="toc" id="toc"></nav>
+
+  <main class="workspace">
+    <section class="pane pane-course" id="paneCourse" style="width:56%;">
+      <div class="pane-header">
+        <span>Field Course Player</span>
+        <span class="tag" id="progressTag">Book 1 of 22</span>
+      </div>
+      <div class="pane-course-inner" id="courseInner"></div>
+      <div class="player-bar">
+        <button id="btnPrev" title="Previous">◀</button>
+        <button id="btnPlay" class="play" title="Play narration">▶</button>
+        <button id="btnNext" title="Next">▶</button>
+        <span class="slide-label" id="slideLabel">Book 1 of 22</span>
+      </div>
+    </section>
+
+    <div class="divider" id="divider"></div>
+
+    <section class="pane pane-sap" id="paneSap" style="width:44%;">
+      <div class="pane-header sap-head">
+        <span>SAP Login &amp; Navigation Window</span>
+        <span class="tag">Practice alongside the topic</span>
+      </div>
+
+      <div class="sap-mode-toggle">
+        <button id="modeDesktop" class="modeBtn active">SAP GUI (Windows App)</button>
+        <button id="modeBrowser" class="modeBtn">Browser (Fiori / WebGUI)</button>
+      </div>
+
+      <!-- Default view: SAP GUI is a native Windows application, not a website — no URL, no embedding possible. -->
+      <div id="desktopGuide" class="sap-desktop-guide">
+        <div class="icon">🖥️</div>
+        <p class="lead"><b>SAP GUI (SAP Logon) is a Windows program, not a webpage</b> — this course can't display it inside this window, the same way it can't display Excel or Outlook.</p>
+        <ol>
+          <li>Open <b>SAP Logon</b> from your Windows Start Menu (or wherever your IT team installed it) and connect to your system as you normally do.</li>
+          <li>Snap it beside this browser: drag its title bar to the left or right edge of your screen, or press <span class="key">⊞ Win</span> + <span class="key">←</span> / <span class="key">→</span>. Do the same with this browser window on the other side.</li>
+          <li>Follow each step in the course on one side while you repeat it in SAP GUI on the other.</li>
+        </ol>
+        <p class="micro">Using two monitors? Just put SAP Logon on one screen and this browser on the other — no snapping needed.</p>
+      </div>
+
+      <!-- Secondary view: only relevant for browser-based SAP access (Fiori Launchpad / SAP WebGUI). -->
+      <div id="browserGuide" class="sap-browser-guide" style="display:none;">
+        <div class="sap-urlbar">
+          <input id="sapUrl" type="text" placeholder="https://your-fiori-launchpad.company.com/..." />
+          <button onclick="loadSap()">Go</button>
+          <button class="secondary" onclick="openSapNewWindow()">Open in New Tab ↗</button>
+        </div>
+        <div class="sap-frame-wrap" id="sapFrameWrap">
+          <div class="sap-placeholder" id="sapPlaceholder">
+            <div class="icon">🌐</div>
+            <p><b>Only for browser-based SAP access</b> — a Fiori Launchpad or SAP WebGUI URL. Enter it above, or use "Open in New Tab" to arrange it beside this course.</p>
+          </div>
+          <iframe id="sapFrame" style="display:none;"></iframe>
+        </div>
+        <div class="sap-note">
+          <b>Note:</b> most production Fiori/GRC systems block embedding for security (X-Frame-Options / CSP). If the panel stays blank, use <b>Open in New Tab</b> instead.
+        </div>
+      </div>
+
+      <div class="sap-refbox">
+        <h3>Quick Reference — This Book’s T-Codes / Apps</h3>
+        <div id="refList"></div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script type="module">
+import {
+  supabase, fetchCourseData, fetchProgress, markBookComplete,
+  fetchEnrollment, signInWithPassword, signUpWithPassword, signOut, getSession
+} from './content.js';
+
+let COURSE_DATA = [];
+let completedBooks = new Set();
+let currentEmail = null;
+let state = { mode: 'intro', partIdx: 0, bookIdx: 0, nextPartIdx: null, nextBookIdx: null, playing: false };
+let dragging = false;
+let authMode = 'signin'; // 'signin' | 'signup'
+
+/* ---------- Course Introduction (static onboarding content) ---------- */
+const INTRO_SLIDES = [
+  {
+    kicker: 'Start Here',
+    title: 'Welcome to Course 5 — SOX Using AI',
+    narration: 'Welcome to Course 5, SOX Using AI. This course exists to close one specific gap.',
+    html: `<p class="body-text">It's one thing to understand what a control finding looks like and why it matters — it's a different thing entirely to know exactly which screen to open to go find it yourself. That's the gap this course closes.</p>
+           <p class="body-text">For every topic in the guide, you'll get the transaction codes, Fiori app names, and GRC navigation paths a working consultant would use to pull real evidence — plus the execution steps and the evidence to capture, one topic (one Book) at a time.</p>
+           <p class="body-text"><b>New to SAP?</b> You don't need prior SAP experience to start here. Every Book tells you exactly what to open and how to open it — including a plain-language instruction for every transaction code, not just the code itself.</p>`,
+  },
+  {
+    kicker: 'Read This First',
+    title: 'A Note on This Course\u2019s Technical Content',
+    narration: 'A note on this course\u2019s technical content. This is important.',
+    warning: true,
+    html: `<p class="body-text"><b>The transaction codes, Fiori apps, and navigation paths in this course are newly authored for this premium track</b> — grounded in Draymoor Global Holdings' story scenarios, but not pulled from or verified against a live SAP system the way Courses 1\u20134's content is. Treat this course's technical steps as a well-reasoned teaching model of how each investigation would likely proceed, not a verified production procedure.</p>
+           <p class="body-text">As with every course in this series: every step assumes a test or QA client, or read-only display transactions. Observe and extract evidence — do not make configuration changes without written authorization from your engagement lead.</p>`,
+  },
+  {
+    kicker: 'The Big Picture',
+    title: 'How This Fits Into Controls Testing in General',
+    narration: 'How this fits into controls testing in general.',
+    html: `<p class="body-text">What you're practicing here is real internal-controls reasoning — the kind auditors and GRC consultants perform to test whether a company's systems actually enforce the controls they claim to have, applied to control questions AI-era companies are only beginning to face.</p>
+           <p class="body-text">Every Book in this course maps to one of seven scope areas, following Draymoor Global Holdings' story arc across emerging technology, treasury and ESG, disclosure and carve-out controls, advanced access and identity, CI/CD and resilience, restatement and legal exposure, and a compound capstone finding.</p>`,
+  },
+  {
+    kicker: 'The Map',
+    title: 'How the Course Is Organized',
+    narration: 'How the course is organized, Part by Part.',
+    html: `<div class="intro-parts">
+      <div class="intro-part-row"><b>Part I — Emerging Technology and Non-Human Accounts</b><span>RPA bot governance and AI/ML model governance. (2 Books)</span></div>
+      <div class="intro-part-row"><b>Part II — Treasury, ESG and Central Finance</b><span>Treasury/FX controls, ESG reporting integrity, and S/4HANA Central Finance replication. (3 Books)</span></div>
+      <div class="intro-part-row"><b>Part III — Disclosure, Monitoring and Carve-Out Controls</b><span>Cybersecurity disclosure, CCM at scale, and M&amp;A carve-out/TSA controls. (3 Books)</span></div>
+      <div class="intro-part-row"><b>Part IV — Advanced Access and Identity</b><span>Realized-fraud access review, cross-cloud identity federation, AI-assisted EAM, and post-merger access. (4 Books)</span></div>
+      <div class="intro-part-row"><b>Part V — CI/CD, Resilience and Custom Code</b><span>CI/CD change management, multi-cloud disaster recovery, and unremediated vulnerabilities. (3 Books)</span></div>
+      <div class="intro-part-row"><b>Part VI — Restatement, Legal and External Reporting</b><span>Late-discovered failures, litigation holds, non-GAAP reporting, new standards, data sovereignty, and licensing audits. (6 Books)</span></div>
+      <div class="intro-part-row"><b>Part VII — Everything, All at Once — Capstone</b><span>A compound, multi-domain finding drawing on every scope area above. (1 Book)</span></div>
+    </div>
+    <p class="body-text" style="margin-top:16px;">Each Part groups Books by the area of control they test — the same structure used in real SOX/ITGC and GRC engagements.</p>`,
+  },
+  {
+    kicker: 'Ready?',
+    title: 'How to Use This Course',
+    narration: 'How to use this course. Use Play, Previous, and Next to move through each topic.',
+    html: `<p class="body-text">Every Book plays like a short slideshow: use <b>Play</b> to have it read aloud and advance automatically, or <b>Previous</b> / <b>Next</b> to move at your own pace.</p>
+           <p class="body-text">Alongside the course, the <b>SAP window</b> on the right helps you repeat each topic live — whether you access SAP through the SAP GUI desktop app or through a browser.</p>
+           <p class="body-text">Your progress is tracked automatically as you go — no need to mark anything complete yourself.</p>`,
+    cta: true,
+  },
+];
+
+function loadIntro(){
+  stopNarration();
+  state.mode = 'intro';
+  document.getElementById('courseInner').innerHTML = renderIntroPage();
+  renderToc();
+  renderRefList(null);
+  updateBreadcrumb();
+  updateNavButtons();
+  document.getElementById('courseInner').scrollTop = 0;
+  closeToc();
+}
+window.loadIntro = loadIntro;
+
+/* ---------- Auth gate wiring ---------- */
+const authGate = document.getElementById('authGate');
+const notEnrolledGate = document.getElementById('notEnrolledGate');
+const loadingGate = document.getElementById('loadingGate');
+const authMsg = document.getElementById('authMsg');
+
+function showAuthMsg(text, type){
+  authMsg.textContent = text;
+  authMsg.className = 'authMsg ' + type;
+}
+function clearAuthMsg(){ authMsg.className = 'authMsg hidden'; }
+
+document.getElementById('authSwitchLink').onclick = () => {
+  authMode = authMode === 'signin' ? 'signup' : 'signin';
+  clearAuthMsg();
+  if(authMode === 'signup'){
+    document.getElementById('authTitle').textContent = 'Create Trainee Account';
+    document.getElementById('authHint').textContent = 'Use the email address your TIB administrator enrolled you with.';
+    document.getElementById('authSubmit').textContent = 'Create Account';
+    document.getElementById('authSwitch').innerHTML = 'Already have an account? <a id="authSwitchLink2">Sign in</a>';
+    document.getElementById('authSwitchLink2').onclick = () => location.reload();
+  }
+};
+
+document.getElementById('authSubmit').onclick = async () => {
+  const email = document.getElementById('authEmail').value.trim();
+  const password = document.getElementById('authPassword').value;
+  if(!email || !password){ showAuthMsg('Enter your email and password.', 'error'); return; }
+  clearAuthMsg();
+  document.getElementById('authSubmit').disabled = true;
+  try{
+    const { error } = authMode === 'signup'
+      ? await signUpWithPassword(email, password)
+      : await signInWithPassword(email, password);
+    if(error){ showAuthMsg(error.message, 'error'); document.getElementById('authSubmit').disabled = false; return; }
+    if(authMode === 'signup'){
+      showAuthMsg('Account created. Check your email if confirmation is required, then sign in.', 'info');
+      document.getElementById('authSubmit').disabled = false;
+      return;
+    }
+    await afterAuth();
+  } catch(e){
+    showAuthMsg(e.message || 'Something went wrong.', 'error');
+    document.getElementById('authSubmit').disabled = false;
+  }
+};
+
+document.getElementById('notEnrolledSignOut').onclick = async () => { await signOut(); location.reload(); };
+document.getElementById('headerSignOut').onclick = async () => { await signOut(); location.reload(); };
+
+async function afterAuth(){
+  const session = await getSession();
+  if(!session){ authGate.classList.remove('hidden'); return; }
+  currentEmail = session.user.email;
+  authGate.classList.add('hidden');
+  loadingGate.classList.remove('hidden');
+
+  let enrollment;
+  try{ enrollment = await fetchEnrollment(currentEmail); }
+  catch(e){ showAuthMsg('Could not verify enrollment: ' + e.message, 'error'); loadingGate.classList.add('hidden'); authGate.classList.remove('hidden'); return; }
+
+  if(!enrollment){
+    loadingGate.classList.add('hidden');
+    document.getElementById('notEnrolledEmail').textContent = currentEmail;
+    notEnrolledGate.classList.remove('hidden');
+    return;
+  }
+
+  try{
+    const [books, progress] = await Promise.all([fetchCourseData(), fetchProgress(currentEmail)]);
+    COURSE_DATA = books;
+    completedBooks = progress;
+  } catch(e){
+    loadingGate.textContent = 'Could not load course content: ' + e.message;
+    return;
+  }
+  loadingGate.classList.add('hidden');
+  loadIntro();
+}
+
+/* ---------- App init: check existing session first ---------- */
+(async () => {
+  const session = await getSession();
+  if(session){ await afterAuth(); }
+  else { loadingGate.classList.add('hidden'); authGate.classList.remove('hidden'); }
+})();
+
+function pad(n){ return String(n).padStart(2,'0'); }
+
+function renderIntroPage(){
+  const s0 = INTRO_SLIDES[0];
+  let html = `<div class="book-tab"><span class="n">${s0.kicker}</span></div>
+    <h1 class="book-title">${s0.title}</h1>
+    <div class="book-section">${s0.html}</div>`;
+  for(let i=1;i<INTRO_SLIDES.length;i++){
+    const s = INTRO_SLIDES[i];
+    if(s.warning){
+      html += `<div class="book-section">
+        <h2>${s.title}</h2>
+        <div class="callout pitfall"><span class="stamp">${s.kicker}</span>${s.html}</div>
+      </div>`;
+    } else {
+      html += `<div class="book-section"><h2>${s.title}</h2>${s.html}</div>`;
+    }
+  }
+  html += `<button class="cta-start" onclick="loadBook(0,0)">Start the Course →</button>`;
+  return `<div class="slide">${html}</div>`;
+}
+
+function renderBookPage(book){
+  let html = `
+    <div class="book-tab"><span class="n">Book ${pad(book.num)}</span> — Field Manual</div>
+    <div class="book-identity-row">
+      <h1 class="book-title">${book.shortname}</h1>
+      <p class="book-subtitle">${book.subtitle}</p>
+    </div>
+    <div class="book-section">
+      <h2>Scenario Brief</h2>
+      <p class="body-text">${book.intro}</p>
+    </div>`;
+  if(book.execTable && book.execTable.length){
+    const hasContext = book.evidence || book.pitfall;
+    const execBlock = `<div class="exec-col">
+      <h2>Execution Steps</h2>
+      <table class="exec-table">
+        <thead><tr><th>#</th><th>Tool</th><th>Code / App</th><th>Directions</th><th>Screenshot</th></tr></thead>
+        <tbody>
+          ${book.execTable.map((r, i) => `<tr>
+            <td><div class="exec-step-badge">${i+1}</div></td>
+            <td>${r.tool !== '—' ? `<span class="tool-pill">${r.tool}</span>` : '<span class="tool-dash">—</span>'}</td>
+            <td>${r.code !== '—' ? `<span class="code-chip" onclick="copyChip(this)">${r.code}</span>` : '<span class="tool-dash">—</span>'}</td>
+            <td><div class="directions-cell"><span class="directions-text">${r.directions}</span><button type="button" class="expand-btn" data-step='${attrEscape(JSON.stringify({n:i+1, tool:r.tool, code:r.code, directions:r.directions}))}' onclick="openDirectionsExpand(this)">⤢ Click to Expand Direction</button></div></td>
+            <td><div class="screenshot-slot">📷 Not yet captured</div></td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
+    if(hasContext){
+      const contextBlock = `<aside class="context-col">
+        ${book.evidence ? `<div class="callout"><span class="stamp">Exhibit — Evidence Log</span>${book.evidence}</div>` : ''}
+        ${book.pitfall ? `<div class="callout pitfall"><span class="stamp">Caution</span>${book.pitfall}</div>` : ''}
+      </aside>`;
+      html += `<div class="book-section exec-context-wrap">${execBlock}${contextBlock}</div>`;
+    } else {
+      html += `<div class="book-section">${execBlock}</div>`;
+    }
+  } else if(book.evidence || book.pitfall){
+    // No execution steps for this Book — fall back to plain stacked sections for Evidence/Pitfall.
+    if(book.evidence){
+      html += `<div class="book-section">
+        <h2>Evidence to Capture</h2>
+        <div class="callout"><span class="stamp">Exhibit — Evidence Log</span>${book.evidence}</div>
+      </div>`;
+    }
+    if(book.pitfall){
+      html += `<div class="book-section">
+        <h2>Common Pitfall</h2>
+        <div class="callout pitfall"><span class="stamp">Caution</span>${book.pitfall}</div>
+      </div>`;
+    }
+  }
+  return `<div class="slide">${html}</div>`;
+}
+
+function nextBookCoords(pIdx, bIdx){
+  const part = COURSE_DATA[pIdx];
+  if(bIdx < part.books.length-1) return [pIdx, bIdx+1];
+  if(pIdx < COURSE_DATA.length-1) return [pIdx+1, 0];
+  return null;
+}
+function prevBookCoords(pIdx, bIdx){
+  if(bIdx > 0) return [pIdx, bIdx-1];
+  if(pIdx > 0){ const pp = pIdx-1; return [pp, COURSE_DATA[pp].books.length-1]; }
+  return null;
+}
+
+function renderToc(){
+  const toc = document.getElementById('toc');
+  toc.innerHTML = '';
+
+  const introRow = document.createElement('div');
+  introRow.className = 'intro-row' + (state.mode === 'intro' ? ' active' : '');
+  introRow.innerHTML = `<span class="istar">★</span><span>Course Introduction</span>`;
+  introRow.onclick = () => loadIntro();
+  toc.appendChild(introRow);
+
+  const bookModeActive = state.mode === 'book' || state.mode === 'transition';
+
+  COURSE_DATA.forEach((part, pIdx) => {
+    const partDiv = document.createElement('div');
+    partDiv.className = 'part' + (pIdx === state.partIdx ? ' open' : '');
+    partDiv.dataset.idx = pIdx;
+
+    const head = document.createElement('div');
+    head.className = 'part-head' + (bookModeActive && pIdx === state.partIdx ? ' active-part' : '');
+    head.innerHTML = `<span class="roman">${part.numeral}</span><span>${part.title.split(' (Books')[0]}</span><span class="chev">▶</span>`;
+    head.onclick = () => { partDiv.classList.toggle('open'); };
+    partDiv.appendChild(head);
+
+    const books = document.createElement('div');
+    books.className = 'books';
+    part.books.forEach((book, bIdx) => {
+      const row = document.createElement('div');
+      row.className = 'book-row' + (bookModeActive && pIdx===state.partIdx && bIdx===state.bookIdx ? ' active' : '');
+      const check = completedBooks.has(book.num) ? '<span class="checkmark">✓</span>' : '';
+      row.innerHTML = `<span class="bnum">${String(book.num).padStart(2,'0')}</span><span>${book.shortname}</span>${check}`;
+      row.onclick = () => loadBook(pIdx, bIdx);
+      books.appendChild(row);
+    });
+    partDiv.appendChild(books);
+    toc.appendChild(partDiv);
+  });
+}
+
+function loadBook(pIdx, bIdx){
+  stopNarration();
+  state.mode = 'book';
+  state.partIdx = pIdx; state.bookIdx = bIdx;
+  const book = COURSE_DATA[pIdx].books[bIdx];
+  document.getElementById('courseInner').innerHTML = renderBookPage(book);
+  renderToc();
+  renderRefList(book);
+  updateBreadcrumb();
+  updateNavButtons();
+  document.getElementById('courseInner').scrollTop = 0;
+  closeToc();
+}
+window.loadBook = loadBook;
+
+function continueToNext(){ loadBook(state.nextPartIdx, state.nextBookIdx); }
+window.continueToNext = continueToNext;
+
+function showTransition(pIdx, bIdx){
+  stopNarration();
+  const book = COURSE_DATA[pIdx].books[bIdx];
+  if(currentEmail && !completedBooks.has(book.num)){
+    completedBooks.add(book.num);
+    markBookComplete(currentEmail, book.num);
+  }
+  state.partIdx = pIdx; state.bookIdx = bIdx; // keep pointing at the just-completed book for TOC highlighting
+  const next = nextBookCoords(pIdx, bIdx);
+  if(!next){ showComplete(); return; }
+  state.mode = 'transition';
+  state.nextPartIdx = next[0]; state.nextBookIdx = next[1];
+  const nb = COURSE_DATA[next[0]].books[next[1]];
+  document.getElementById('courseInner').innerHTML = `<div class="slide"><div class="transition-page">
+    <div class="transition-check">✓</div>
+    <div class="done-label">Book ${book.num} Complete</div>
+    <h1 class="done-title">${book.shortname}</h1>
+    <div class="progress-note">${completedBooks.size} of ${totalBooks()} Books completed</div>
+    <div class="transition-nextcard">
+      <div class="up-next-label">Up Next — Book ${nb.num}</div>
+      <div class="next-title">${nb.shortname}</div>
+      <div class="next-subtitle">${nb.subtitle}</div>
+      <div class="next-intro">${nb.intro}</div>
+    </div>
+    <button class="cta-start" onclick="continueToNext()">Continue to Book ${nb.num} →</button>
+  </div></div>`;
+  renderToc();
+  renderRefList(null);
+  updateBreadcrumb();
+  updateNavButtons();
+  document.getElementById('courseInner').scrollTop = 0;
+  closeToc();
+}
+
+function showComplete(){
+  stopNarration();
+  state.mode = 'complete';
+  document.getElementById('courseInner').innerHTML = `<div class="slide"><div class="complete-page">
+    <div class="trophy">🏅</div>
+    <h1>Course Complete</h1>
+    <p>You've worked through every Book across all Parts of the SAP Testing Execution Guide — ${completedBooks.size} of ${totalBooks()} completed.</p>
+    <button class="cta-start" onclick="loadIntro()">Back to Course Introduction</button>
+  </div></div>`;
+  renderToc();
+  renderRefList(null);
+  updateBreadcrumb();
+  updateNavButtons();
+  closeToc();
+}
+window.showComplete = showComplete;
+
+function totalBookIndex(){
+  let n = 0;
+  for(let i=0;i<state.partIdx;i++) n += COURSE_DATA[i].books.length;
+  return n + state.bookIdx + 1;
+}
+function totalBooks(){ return COURSE_DATA.reduce((a,p)=>a+p.books.length,0); }
+
+function updateBreadcrumb(){
+  const label = document.getElementById('slideLabel');
+  if(state.mode === 'intro'){
+    document.getElementById('breadcrumb').innerHTML = `<b>Course Introduction</b>`;
+    document.getElementById('progressTag').textContent = `Start Here · ${completedBooks.size} of ${totalBooks()} completed`;
+    label.textContent = 'Introduction';
+    return;
+  }
+  if(state.mode === 'transition'){
+    document.getElementById('breadcrumb').innerHTML = `<b>Book Complete</b>`;
+    document.getElementById('progressTag').textContent = `${completedBooks.size} of ${totalBooks()} completed`;
+    label.textContent = 'Up Next';
+    return;
+  }
+  if(state.mode === 'complete'){
+    document.getElementById('breadcrumb').innerHTML = `<b>Course Complete</b>`;
+    document.getElementById('progressTag').textContent = `${completedBooks.size} of ${totalBooks()} completed`;
+    label.textContent = '🏅 All Books Complete';
+    return;
+  }
+  const part = COURSE_DATA[state.partIdx];
+  const book = part.books[state.bookIdx];
+  document.getElementById('breadcrumb').innerHTML =
+    `Part ${part.numeral} <span class="sep">/</span> <b>Book ${book.num} — ${book.shortname}</b>`;
+  document.getElementById('progressTag').textContent = `Book ${totalBookIndex()} of ${totalBooks()} · ${completedBooks.size} completed`;
+  label.textContent = `Book ${totalBookIndex()} of ${totalBooks()}`;
+}
+
+function renderRefList(book){
+  const el = document.getElementById('refList');
+  el.innerHTML = '';
+  if(!book){
+    el.innerHTML = `<div class="ref-empty">Quick Reference appears here once you open a Book.</div>`;
+    return;
+  }
+  (book.transactions||[]).forEach(t => {
+    const row = document.createElement('div');
+    row.className = 'refrow';
+    row.innerHTML = `<span class="code-chip" onclick="copyChip(this)">${t.code}</span><span class="rp">${t.tool}</span>`;
+    el.appendChild(row);
+  });
+}
+
+
+function attrEscape(s){
+  return String(s).replace(/&/g,'&amp;').replace(/'/g,'&#39;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function htmlEscape(s){
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+/* Splits a Directions sentence into short, ordered, easy-to-follow steps.
+   Respects parentheses/brackets so it never splits mid-parenthetical. */
+function smartSplitSteps(text){
+  if(!text) return [];
+  const delims = ['. ', '; ', ', and ', ' and ', ', '];
+  let depth = 0, segments = [], cur = '', i = 0;
+  while(i < text.length){
+    const ch = text[i];
+    if(ch === '(' || ch === '[') depth++;
+    if(ch === ')' || ch === ']') depth = Math.max(0, depth - 1);
+    let matched = null;
+    if(depth === 0){
+      for(const d of delims){
+        if(text.startsWith(d, i)){ matched = d; break; }
+      }
+    }
+    if(matched){
+      segments.push(cur.trim());
+      cur = '';
+      i += matched.length;
+      continue;
+    }
+    cur += ch;
+    i++;
+  }
+  if(cur.trim()) segments.push(cur.trim());
+  return segments
+    .map(s => s.replace(/^[-\u2013\u2014\s]+/, '').trim())
+    .filter(s => s.length > 2)
+    .map(s => {
+      let t = s.charAt(0).toUpperCase() + s.slice(1);
+      if(!/[.?!]$/.test(t)) t += '.';
+      return t;
+    });
+}
+
+/* Separates the "what to test" sentence from the bracketed [Navigation: ...] click path,
+   then splits each into its own ordered step list. */
+function parseDirectionsForDisplay(text){
+  const m = text.match(/\[Navigation:(.*?)\]/is);
+  let main = text, nav = null;
+  if(m){
+    main = (text.slice(0, m.index) + text.slice(m.index + m[0].length)).trim();
+    nav = m[1].trim();
+  }
+  return { mainSteps: smartSplitSteps(main), navSteps: nav ? smartSplitSteps(nav) : [] };
+}
+
+function escCloseDirectionsHandler(e){
+  if(e.key === 'Escape') closeDirectionsExpand();
+}
+
+function openDirectionsExpand(btn){
+  let data;
+  try{ data = JSON.parse(btn.getAttribute('data-step')); } catch(e){ return; }
+  const { mainSteps, navSteps } = parseDirectionsForDisplay(data.directions);
+  let headerCtx = `Step ${data.n}`;
+  try{
+    if(state.mode === 'book'){
+      const book = COURSE_DATA[state.partIdx].books[state.bookIdx];
+      headerCtx = `Book ${book.num} \u2014 ${book.shortname} \u00b7 Step ${data.n}`;
+    }
+  }catch(e){}
+  const toolLine = (data.tool !== '\u2014' || data.code !== '\u2014')
+    ? `<div class="expand-tool-line">${data.tool !== '\u2014' ? `<span class="tool-pill">${htmlEscape(data.tool)}</span>` : ''}${data.code !== '\u2014' ? `<span class="code-chip">${htmlEscape(data.code)}</span>` : ''}</div>`
+    : '';
+  const overlay = document.createElement('div');
+  overlay.className = 'directions-modal-overlay';
+  overlay.innerHTML = `
+    <div class="directions-modal">
+      <div class="directions-modal-head">
+        <div>
+          <div class="directions-modal-eyebrow">${htmlEscape(headerCtx)}</div>
+          ${toolLine}
+        </div>
+        <button type="button" class="directions-modal-close" onclick="closeDirectionsExpand()" aria-label="Close">\u2715</button>
+      </div>
+      <div class="directions-modal-body">
+        ${mainSteps.length ? `<h3>What To Test</h3><ol class="directions-steps">${mainSteps.map(s=>`<li>${htmlEscape(s)}</li>`).join('')}</ol>` : ''}
+        ${navSteps.length ? `<h3>Click-by-Click Navigation</h3><ol class="directions-steps directions-steps-nav">${navSteps.map(s=>`<li>${htmlEscape(s)}</li>`).join('')}</ol>` : ''}
+        ${(!mainSteps.length && !navSteps.length) ? `<p class="body-text">${htmlEscape(data.directions)}</p>` : ''}
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  document.body.style.overflow = 'hidden';
+  overlay.addEventListener('click', (e) => { if(e.target === overlay) closeDirectionsExpand(); });
+  document.addEventListener('keydown', escCloseDirectionsHandler);
+}
+
+function closeDirectionsExpand(){
+  const overlay = document.querySelector('.directions-modal-overlay');
+  if(overlay) overlay.remove();
+  document.body.style.overflow = '';
+  document.removeEventListener('keydown', escCloseDirectionsHandler);
+}
+window.openDirectionsExpand = openDirectionsExpand;
+window.closeDirectionsExpand = closeDirectionsExpand;
+
+function copyChip(el){
+  const text = el.textContent;
+  if(navigator.clipboard){ navigator.clipboard.writeText(text).catch(()=>{}); }
+  el.classList.add('copied');
+  const orig = el.textContent;
+  el.textContent = 'Copied ✓';
+  setTimeout(()=>{ el.textContent = orig; el.classList.remove('copied'); }, 900);
+}
+
+function pageNarration(){
+  if(state.mode === 'intro'){
+    return INTRO_SLIDES.map(s => s.narration).join(' ');
+  }
+  if(state.mode === 'transition'){
+    const book = COURSE_DATA[state.partIdx].books[state.bookIdx];
+    const nb = COURSE_DATA[state.nextPartIdx].books[state.nextBookIdx];
+    return `Book ${book.num} complete. Up next: Book ${nb.num}, ${nb.shortname}. ${nb.subtitle}. ${nb.intro}`;
+  }
+  if(state.mode === 'complete'){
+    return `Course complete. You've worked through every book across every Part of the SAP Testing Execution Guide.`;
+  }
+  const b = COURSE_DATA[state.partIdx].books[state.bookIdx];
+  let text = `Book ${b.num}. ${b.shortname}. ${b.subtitle}. ${b.intro}`;
+  if(b.transactions && b.transactions.length){
+    text += ' Key transactions and apps. ' + b.transactions.map(t => `${t.tool}, ${t.code}: ${t.purpose}`).join('. ');
+  }
+  if(b.steps && b.steps.length){
+    text += ' Execution steps. ' + b.steps.map((s,i) => `Step ${i+1}. ${s}`).join(' ');
+  }
+  if(b.evidence) text += ' Evidence to capture. ' + b.evidence;
+  if(b.pitfall) text += ' Common pitfall. ' + b.pitfall;
+  return text;
+}
+
+function updateNavButtons(){
+  const btnPrev = document.getElementById('btnPrev');
+  const btnNext = document.getElementById('btnNext');
+  if(state.mode === 'intro'){
+    btnPrev.disabled = true;
+    btnNext.disabled = false; btnNext.title = 'Start the Course';
+    return;
+  }
+  if(state.mode === 'complete'){
+    btnPrev.disabled = false; btnPrev.title = 'Back to last Book';
+    btnNext.disabled = true;
+    return;
+  }
+  btnPrev.disabled = false;
+  btnPrev.title = state.mode === 'transition' ? 'Back to this Book' : 'Previous';
+  btnNext.disabled = false;
+  btnNext.title = state.mode === 'transition' ? 'Continue to next Book' : 'Finish this Book';
+}
+
+function goNext(){
+  stopNarration();
+  if(state.mode === 'intro'){ loadBook(0,0); return; }
+  if(state.mode === 'book'){ showTransition(state.partIdx, state.bookIdx); return; }
+  if(state.mode === 'transition'){ continueToNext(); return; }
+}
+
+function goPrev(){
+  stopNarration();
+  if(state.mode === 'intro') return;
+  if(state.mode === 'complete'){
+    const lastPart = COURSE_DATA.length-1;
+    loadBook(lastPart, COURSE_DATA[lastPart].books.length-1);
+    return;
+  }
+  if(state.mode === 'transition'){
+    loadBook(state.partIdx, state.bookIdx);
+    return;
+  }
+  const prev = prevBookCoords(state.partIdx, state.bookIdx);
+  if(prev){ loadBook(prev[0], prev[1]); } else { loadIntro(); }
+}
+function startNarration(){
+  if(!('speechSynthesis' in window)) return;
+  stopNarration();
+  const utter = new SpeechSynthesisUtterance(pageNarration());
+  utter.rate = 0.98;
+  utter.onend = () => { state.playing = false; document.getElementById('btnPlay').textContent = '▶'; };
+  state.playing = true;
+  document.getElementById('btnPlay').textContent = '❚❚';
+  window.speechSynthesis.speak(utter);
+}
+function stopNarration(){
+  state.playing = false;
+  document.getElementById('btnPlay').textContent = '▶';
+  if('speechSynthesis' in window) window.speechSynthesis.cancel();
+}
+
+document.getElementById('btnPlay').onclick = () => { state.playing ? stopNarration() : startNarration(); };
+document.getElementById('btnNext').onclick = () => goNext();
+document.getElementById('btnPrev').onclick = () => goPrev();
+
+/* SAP pane mode toggle: SAP GUI (Windows desktop app, default) vs Browser (Fiori/WebGUI) */
+document.getElementById('modeDesktop').onclick = () => {
+  document.getElementById('modeDesktop').classList.add('active');
+  document.getElementById('modeBrowser').classList.remove('active');
+  document.getElementById('desktopGuide').style.display = 'flex';
+  document.getElementById('browserGuide').style.display = 'none';
+};
+document.getElementById('modeBrowser').onclick = () => {
+  document.getElementById('modeBrowser').classList.add('active');
+  document.getElementById('modeDesktop').classList.remove('active');
+  document.getElementById('browserGuide').style.display = 'flex';
+  document.getElementById('desktopGuide').style.display = 'none';
+};
+
+/* SAP pane */
+function loadSap(){
+  const url = document.getElementById('sapUrl').value.trim();
+  if(!url) return;
+  const frame = document.getElementById('sapFrame');
+  const ph = document.getElementById('sapPlaceholder');
+  frame.src = url.startsWith('http') ? url : 'https://' + url;
+  frame.style.display = 'block';
+  ph.style.display = 'none';
+}
+function openSapNewWindow(){
+  const url = document.getElementById('sapUrl').value.trim();
+  window.open(url && url.startsWith('http') ? url : (url ? 'https://'+url : 'about:blank'), '_blank', 'width=1100,height=800');
+}
+
+/* Sidebar overlay: always off-canvas, toggled by the header button; closes on scrim click or book/intro select */
+function toggleToc(force){
+  const open = typeof force === 'boolean' ? force : !document.getElementById('toc').classList.contains('open');
+  document.getElementById('toc').classList.toggle('open', open);
+  document.getElementById('tocScrim').classList.toggle('open', open);
+}
+function closeToc(){ toggleToc(false); }
+window.toggleToc = toggleToc;
+
+/* Full screen: hides browser chrome too, maximizing both panes further */
+const fsBtn = document.getElementById('fullscreenToggle');
+fsBtn.onclick = () => {
+  if(!document.fullscreenElement){
+    document.documentElement.requestFullscreen?.().catch(() => {});
+  } else {
+    document.exitFullscreen?.();
+  }
+};
+document.addEventListener('fullscreenchange', () => {
+  fsBtn.textContent = document.fullscreenElement ? '⤢ Exit Full Screen' : '⛶ Full Screen';
+});
+
+/* SAP window show/hide switch — hidden by default so the course pane gets full width;
+   opens as a split pane when needed, closes back to full width when done. */
+const sapToggleBtn = document.getElementById('sapToggle');
+sapToggleBtn.onclick = () => {
+  const open = document.body.classList.toggle('sap-open');
+  sapToggleBtn.textContent = open ? '🖥 Close SAP Window' : '🖥 Open SAP Window';
+  sapToggleBtn.classList.toggle('active', open);
+};
+
+/* Mobile view toggle */
+function setMobileView(showSap){
+  document.body.classList.toggle('show-sap', showSap);
+  document.getElementById('btnShowCourse').classList.toggle('active', !showSap);
+  document.getElementById('btnShowSap').classList.toggle('active', showSap);
+}
+
+/* Divider drag resize */
+const divider = document.getElementById('divider');
+const paneCourse = document.getElementById('paneCourse');
+const paneSap = document.getElementById('paneSap');
+divider.addEventListener('mousedown', () => { dragging = true; divider.classList.add('dragging'); document.body.style.userSelect='none'; });
+window.addEventListener('mouseup', () => { dragging = false; divider.classList.remove('dragging'); document.body.style.userSelect=''; });
+window.addEventListener('mousemove', (e) => {
+  if(!dragging) return;
+  const shell = document.querySelector('main.workspace');
+  const rect = shell.getBoundingClientRect();
+  let pct = ((e.clientX - rect.left) / rect.width) * 100;
+  pct = Math.min(78, Math.max(28, pct));
+  paneCourse.style.width = pct + '%';
+  paneSap.style.width = (100-pct) + '%';
+});
+
+/* Keyboard nav */
+document.addEventListener('keydown', (e) => {
+  if(e.target.tagName === 'INPUT') return;
+  if(e.key === 'ArrowRight') goNext(false);
+  if(e.key === 'ArrowLeft') goPrev();
+  if(e.key === ' '){ e.preventDefault(); state.playing ? stopNarration() : startNarration(); }
+});
+
+/* Expose functions referenced by inline onclick="" attributes — module scope isn't global. */
+window.setMobileView = setMobileView;
+window.loadSap = loadSap;
+window.openSapNewWindow = openSapNewWindow;
+window.copyChip = copyChip;
+window.loadBook = loadBook;
+
+/* Init handled by the auth flow above — loadBook(0,0) is called from afterAuth() once data is fetched. */
+</script>
+</body>
+</html>
